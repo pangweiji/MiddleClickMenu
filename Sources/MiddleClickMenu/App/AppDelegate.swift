@@ -42,20 +42,22 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor private func handleMiddleClick(at location: CGPoint) {
         lastClickLocation = location
-        let selectedText = textProvider.getSelectedText()
-        let actions = actionRunner.availableActions(selectedText: selectedText)
+        textProvider.getSelectedTextAsync { [weak self] selectedText in
+            guard let self = self else { return }
+            let actions = self.actionRunner.availableActions(selectedText: selectedText)
 
-        menuPresenter.showMenu(
-            at: location,
-            actions: actions,
-            selectedText: selectedText,
-            isActionEnabled: { [weak self] action in
-                self?.actionRunner.isActionEnabled(action, selectedText: selectedText) ?? false
-            },
-            onSelect: { [weak self] action in
-                self?.executeAction(action, input: selectedText)
-            }
-        )
+            self.menuPresenter.showMenu(
+                at: location,
+                actions: actions,
+                selectedText: selectedText,
+                isActionEnabled: { [weak self] action in
+                    self?.actionRunner.isActionEnabled(action, selectedText: selectedText) ?? false
+                },
+                onSelect: { [weak self] action in
+                    self?.executeAction(action, input: selectedText)
+                }
+            )
+        }
     }
 
     private func executeAction(_ action: any MenuAction, input: String?) {

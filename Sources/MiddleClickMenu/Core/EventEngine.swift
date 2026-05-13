@@ -60,13 +60,11 @@ class EventEngine {
                 return Unmanaged.passRetained(event)
             }
 
-            if engine.isCurrentAppBlacklisted() {
-                return Unmanaged.passRetained(event)
-            }
-
             let location = event.location
             DispatchQueue.main.async {
-                engine.onMiddleClick?(location)
+                if !engine.isCurrentAppBlacklisted() {
+                    engine.onMiddleClick?(location)
+                }
             }
 
             return nil

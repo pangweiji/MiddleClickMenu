@@ -8,8 +8,10 @@ class TextProvider {
         }
 
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
-        var focusedElement: CFTypeRef?
 
+        AXUIElementSetMessagingTimeout(axApp, 0.5)
+
+        var focusedElement: CFTypeRef?
         let focusResult = AXUIElementCopyAttributeValue(
             axApp,
             kAXFocusedUIElementAttribute as CFString,
@@ -20,9 +22,12 @@ class TextProvider {
             return nil
         }
 
+        let axElement = element as! AXUIElement
+        AXUIElementSetMessagingTimeout(axElement, 0.5)
+
         var selectedText: CFTypeRef?
         let textResult = AXUIElementCopyAttributeValue(
-            element as! AXUIElement,
+            axElement,
             kAXSelectedTextAttribute as CFString,
             &selectedText
         )
@@ -32,6 +37,15 @@ class TextProvider {
         }
 
         return text
+    }
+
+    func getSelectedTextAsync(completion: @escaping (String?) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            let text = self.getSelectedText()
+            DispatchQueue.main.async {
+                completion(text)
+            }
+        }
     }
 
     static func checkAccessibilityPermission() -> Bool {
