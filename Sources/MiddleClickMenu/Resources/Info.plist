@@ -4,12 +4,18 @@
 <dict>
     <key>CFBundleName</key>
     <string>MiddleClick Menu</string>
+    <key>CFBundleExecutable</key>
+    <string>MiddleClickMenu</string>
     <key>CFBundleIdentifier</key>
     <string>com.middleclickmenu.app</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
     <key>CFBundleVersion</key>
     <string>1.0.0</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSAccessibilityUsageDescription</key>
