@@ -11,7 +11,11 @@ let package = Package(
             name: "MiddleClickMenuLib",
             path: "Sources/MiddleClickMenu",
             exclude: ["Resources/Info.plist", "App/MiddleClickMenuApp.swift"],
-            swiftSettings: [.swiftLanguageMode(.v5)]
+            swiftSettings: [
+                .swiftLanguageMode(.v5),
+                // MiddleClickMenuTests is an executableTarget, so SPM does not pass -enable-testing to this dependency automatically.
+                .unsafeFlags(["-enable-testing"])
+            ]
         ),
         .executableTarget(
             name: "MiddleClickMenu",

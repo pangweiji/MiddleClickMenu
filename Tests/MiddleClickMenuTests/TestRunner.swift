@@ -25,7 +25,7 @@ final class TestContext: @unchecked Sendable {
     }
 }
 
-nonisolated(unsafe) let ctx = TestContext()
+let ctx = TestContext()
 
 func expect(_ condition: Bool, _ message: String, file: String = #file, line: Int = #line) {
     ctx.expect(condition, message, file: file, line: line)
