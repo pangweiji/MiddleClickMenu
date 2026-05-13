@@ -41,6 +41,7 @@ struct TestRunner {
         print("Running MiddleClickMenu Tests...\n")
 
         ConfigStoreTests.runAll()
+        TimestampActionTests.runAll()
 
         print("\n\(ctx.passed + ctx.failed) tests, \(ctx.passed) passed, \(ctx.failed) failed")
         if ctx.failed > 0 { exit(1) }
