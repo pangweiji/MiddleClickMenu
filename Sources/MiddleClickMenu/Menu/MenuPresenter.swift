@@ -5,6 +5,7 @@ class MenuPresenter {
     private var menuPanel: NSPanel?
     private var toastPanel: NSPanel?
     private var clickMonitor: Any?
+    private var keyMonitor: Any?
     private let configStore: ConfigStore
 
     init(configStore: ConfigStore) {
@@ -20,6 +21,8 @@ class MenuPresenter {
         onSelect: @escaping (any MenuAction) -> Void
     ) {
         dismissMenu()
+
+        print("[MenuPresenter] 显示菜单 at \(screenPoint), \(actions.count) 个动作")
 
         let menuView: AnyView
         switch configStore.config.menuStyle {
@@ -48,8 +51,9 @@ class MenuPresenter {
         let hostingView = NSHostingView(rootView: menuView)
         hostingView.setFrameSize(hostingView.fittingSize)
 
+        let panelSize = hostingView.fittingSize
         let panel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: hostingView.fittingSize),
+            contentRect: NSRect(origin: .zero, size: panelSize),
             styleMask: [.nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -60,9 +64,21 @@ class MenuPresenter {
         panel.level = .popUpMenu
         panel.contentView = hostingView
         panel.isMovable = false
+        panel.hidesOnDeactivate = false
 
-        let flippedY = NSScreen.main!.frame.height - screenPoint.y
-        panel.setFrameTopLeftPoint(NSPoint(x: screenPoint.x, y: flippedY))
+        if let screen = NSScreen.screens.first(where: { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }) ?? NSScreen.main {
+            let flippedY = screen.frame.maxY - screenPoint.y
+            var origin = NSPoint(x: screenPoint.x, y: flippedY)
+            if origin.x + panelSize.width > screen.frame.maxX {
+                origin.x = screen.frame.maxX - panelSize.width
+            }
+            if flippedY - panelSize.height < screen.frame.minY {
+                origin.y = screen.frame.minY + panelSize.height
+            }
+            panel.setFrameTopLeftPoint(origin)
+        }
+
+        self.menuPanel = panel
 
         panel.alphaValue = 0
         panel.orderFrontRegardless()
@@ -72,14 +88,17 @@ class MenuPresenter {
             panel.animator().alphaValue = 1.0
         }
 
-        self.menuPanel = panel
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] _ in
+            self?.dismissMenu()
+        }
 
-        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if let panel = self?.menuPanel, !panel.frame.contains(NSEvent.mouseLocation) {
+        keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 { // Escape
                 self?.dismissMenu()
             }
-            return event
         }
+
+        print("[MenuPresenter] 菜单已显示")
     }
 
     @MainActor
@@ -88,14 +107,18 @@ class MenuPresenter {
             NSEvent.removeMonitor(monitor)
             clickMonitor = nil
         }
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
         guard let panel = menuPanel else { return }
+        menuPanel = nil
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.1
             panel.animator().alphaValue = 0
         }, completionHandler: {
             panel.orderOut(nil)
         })
-        menuPanel = nil
     }
 
     @MainActor
@@ -115,9 +138,12 @@ class MenuPresenter {
         panel.hasShadow = false
         panel.level = .popUpMenu
         panel.contentView = hostingView
+        panel.hidesOnDeactivate = false
 
-        let flippedY = NSScreen.main!.frame.height - screenPoint.y + 20
-        panel.setFrameTopLeftPoint(NSPoint(x: screenPoint.x, y: flippedY))
+        if let screen = NSScreen.main {
+            let flippedY = screen.frame.maxY - screenPoint.y + 20
+            panel.setFrameTopLeftPoint(NSPoint(x: screenPoint.x, y: flippedY))
+        }
 
         toastPanel?.orderOut(nil)
         self.toastPanel = panel

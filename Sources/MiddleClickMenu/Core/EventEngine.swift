@@ -6,7 +6,6 @@ class EventEngine {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var tapThread: Thread?
     private var onMiddleClick: MiddleClickHandler?
     private let configStore: ConfigStore
 
@@ -16,55 +15,52 @@ class EventEngine {
 
     func start(handler: @escaping MiddleClickHandler) {
         self.onMiddleClick = handler
-
-        tapThread = Thread {
-            self.setupEventTap()
-            CFRunLoopRun()
-        }
-        tapThread?.name = "EventEngine.TapThread"
-        tapThread?.start()
+        setupEventTap()
     }
 
     func stop() {
         if let tap = eventTap {
             CGEvent.tapEnable(tap: tap, enable: false)
-        }
-        if let source = runLoopSource, let tap = eventTap {
-            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
             CFMachPortInvalidate(tap)
+        }
+        if let source = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
         }
         eventTap = nil
         runLoopSource = nil
     }
 
     private func setupEventTap() {
-        let eventMask = (1 << CGEventType.otherMouseDown.rawValue)
+        let eventMask: CGEventMask = (1 << CGEventType.otherMouseDown.rawValue)
 
-        let callback: CGEventTapCallBack = { proxy, type, event, refcon in
-            guard let refcon = refcon else { return Unmanaged.passRetained(event) }
+        let callback: CGEventTapCallBack = { _, type, event, refcon in
+            guard let refcon = refcon else {
+                return Unmanaged.passUnretained(event)
+            }
             let engine = Unmanaged<EventEngine>.fromOpaque(refcon).takeUnretainedValue()
 
             if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
                 if let tap = engine.eventTap {
                     CGEvent.tapEnable(tap: tap, enable: true)
                 }
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
 
             guard type == .otherMouseDown else {
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
 
             let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
             guard buttonNumber == 2 else {
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
+
+            print("[EventEngine] 中键点击检测到")
 
             let location = event.location
             DispatchQueue.main.async {
-                if !engine.isCurrentAppBlacklisted() {
-                    engine.onMiddleClick?(location)
-                }
+                print("[EventEngine] 分发到主线程")
+                engine.onMiddleClick?(location)
             }
 
             return nil
@@ -76,7 +72,7 @@ class EventEngine {
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
-            eventsOfInterest: CGEventMask(eventMask),
+            eventsOfInterest: eventMask,
             callback: callback,
             userInfo: selfPtr
         ) else {
@@ -86,11 +82,12 @@ class EventEngine {
 
         self.eventTap = tap
         self.runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+        CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        print("[EventEngine] 事件 Tap 已启动")
     }
 
-    private func isCurrentAppBlacklisted() -> Bool {
+    func isCurrentAppBlacklisted() -> Bool {
         guard let bundleId = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else {
             return false
         }

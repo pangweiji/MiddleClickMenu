@@ -34,29 +34,38 @@ public class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusIcon(enabled: true)
         eventEngine = EventEngine(configStore: configStore)
         eventEngine.start { [weak self] mouseLocation in
-            Task { @MainActor in
-                self?.handleMiddleClick(at: mouseLocation)
+            print("[AppDelegate] 收到中键事件 at \(mouseLocation)")
+            guard let self = self else { return }
+            if self.eventEngine.isCurrentAppBlacklisted() {
+                print("[AppDelegate] 当前应用在黑名单中，跳过")
+                return
             }
+            self.handleMiddleClick(at: mouseLocation)
         }
     }
 
-    @MainActor private func handleMiddleClick(at location: CGPoint) {
+    private func handleMiddleClick(at location: CGPoint) {
         lastClickLocation = location
+        print("[AppDelegate] 获取选中文本...")
         textProvider.getSelectedTextAsync { [weak self] selectedText in
             guard let self = self else { return }
+            print("[AppDelegate] 选中文本: \(selectedText ?? "nil")")
             let actions = self.actionRunner.availableActions(selectedText: selectedText)
+            print("[AppDelegate] 可用动作数: \(actions.count)")
 
-            self.menuPresenter.showMenu(
-                at: location,
-                actions: actions,
-                selectedText: selectedText,
-                isActionEnabled: { [weak self] action in
-                    self?.actionRunner.isActionEnabled(action, selectedText: selectedText) ?? false
-                },
-                onSelect: { [weak self] action in
-                    self?.executeAction(action, input: selectedText)
-                }
-            )
+            Task { @MainActor in
+                self.menuPresenter.showMenu(
+                    at: location,
+                    actions: actions,
+                    selectedText: selectedText,
+                    isActionEnabled: { [weak self] action in
+                        self?.actionRunner.isActionEnabled(action, selectedText: selectedText) ?? false
+                    },
+                    onSelect: { [weak self] action in
+                        self?.executeAction(action, input: selectedText)
+                    }
+                )
+            }
         }
     }
 
