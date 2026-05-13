@@ -4,27 +4,28 @@ import PackageDescription
 let package = Package(
     name: "MiddleClickMenu",
     platforms: [
-        .macOS(.v14)
-    ],
-    dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-testing.git", branch: "main")
+        .macOS(.v13)
     ],
     targets: [
+        .target(
+            name: "MiddleClickMenuLib",
+            path: "Sources/MiddleClickMenu",
+            exclude: ["Resources/Info.plist", "App/MiddleClickMenuApp.swift"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .executableTarget(
             name: "MiddleClickMenu",
-            path: "Sources/MiddleClickMenu",
-            exclude: ["Resources/Info.plist"],
+            dependencies: ["MiddleClickMenuLib"],
+            path: "Sources/App",
             linkerSettings: [
                 .unsafeFlags(["-Xlinker", "-sectcreate", "-Xlinker", "__TEXT", "-Xlinker", "__info_plist", "-Xlinker", "Sources/MiddleClickMenu/Resources/Info.plist"])
             ]
         ),
-        .testTarget(
+        .executableTarget(
             name: "MiddleClickMenuTests",
-            dependencies: [
-                "MiddleClickMenu",
-                .product(name: "Testing", package: "swift-testing")
-            ],
-            path: "Tests/MiddleClickMenuTests"
+            dependencies: ["MiddleClickMenuLib"],
+            path: "Tests/MiddleClickMenuTests",
+            swiftSettings: [.swiftLanguageMode(.v5)]
         )
     ]
 )
