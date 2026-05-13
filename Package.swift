@@ -1,10 +1,13 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 let package = Package(
     name: "MiddleClickMenu",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v14)
+    ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-testing.git", branch: "main")
     ],
     targets: [
         .executableTarget(
@@ -17,7 +20,10 @@ let package = Package(
         ),
         .testTarget(
             name: "MiddleClickMenuTests",
-            dependencies: ["MiddleClickMenu"],
+            dependencies: [
+                "MiddleClickMenu",
+                .product(name: "Testing", package: "swift-testing")
+            ],
             path: "Tests/MiddleClickMenuTests"
         )
     ]
